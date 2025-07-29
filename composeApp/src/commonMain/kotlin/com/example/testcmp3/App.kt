@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.NavigationEventHandler
+import androidx.compose.ui.backhandler.PredictiveBackHandler
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -31,6 +33,18 @@ fun App() {
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            NavigationEventHandler { progress ->
+                println("started")
+                try {
+                    progress.collect { e ->
+                        println("progressed: ${e}")
+                    }
+                    println("completed")
+                } catch(e: Exception) {
+                    println("cancelled")
+                }
+            }
+
             Button(onClick = { showContent = !showContent }) {
                 Text("Click me!")
             }

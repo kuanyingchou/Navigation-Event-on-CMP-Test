@@ -67,6 +67,8 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.androidx.navigationevent)
+            implementation(libs.compose.ui.backhandler)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
