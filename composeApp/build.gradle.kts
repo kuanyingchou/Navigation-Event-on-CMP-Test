@@ -68,6 +68,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.androidx.navigationevent)
+            implementation(libs.androidx.navigationevent.compose)
             implementation(libs.compose.ui.backhandler)
         }
         commonTest.dependencies {

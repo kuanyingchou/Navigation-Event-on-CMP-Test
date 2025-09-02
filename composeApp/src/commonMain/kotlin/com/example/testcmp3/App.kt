@@ -3,28 +3,42 @@ package com.example.testcmp3
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.backhandler.NavigationEventHandler
-import androidx.compose.ui.backhandler.PredictiveBackHandler
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.compose.NavigationEventHandler
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 import testcmp3.composeapp.generated.resources.Res
 import testcmp3.composeapp.generated.resources.compose_multiplatform
+import kotlin.reflect.KClass
+
+var id = 0
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
+
         var showContent by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier
@@ -33,21 +47,42 @@ fun App() {
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            var progressState by remember { mutableStateOf(0f) }
+            var touchXState by remember { mutableStateOf(0f) }
+            var touchYState by remember { mutableStateOf(0f) }
+            var events by remember { mutableStateOf(listOf<String>()) }
+
             NavigationEventHandler { progress ->
-                println("started")
+                events += "started"
                 try {
                     progress.collect { e ->
-                        println("progressed: ${e}")
+                        progressState = e.progress
+                        touchXState = e.touchX
+                        touchYState = e.touchY
+                        events += "${id} (${e.hashCode()}): $e"
+                        id++
                     }
-                    println("completed")
+                    events += "completed"
                 } catch(e: Exception) {
-                    println("cancelled")
+                    events += "cancelled"
                 }
             }
 
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+            Text("touchX")
+            Slider(
+                value = touchXState / LocalWindowInfo.current.containerSize.width,
+                onValueChange = {})
+            Text("touchY")
+            Slider(
+                value = touchYState / LocalWindowInfo.current.containerSize.height,
+                onValueChange = {})
+            Text("progress")
+            Slider(value = progressState, onValueChange = {})
+            events.takeLast(5).forEach {
+                Text(it)
+                Box(modifier = Modifier.height(10.dp))
             }
+
             AnimatedVisibility(showContent) {
                 val greeting = remember { Greeting().greet() }
                 Column(
@@ -57,6 +92,13 @@ fun App() {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
                     Text("Compose: $greeting")
                 }
+            }
+
+            var enabled by remember { mutableStateOf(true) }
+            if (enabled) {
+                Button(onClick = {
+                    enabled = false
+                }) {}
             }
         }
     }
