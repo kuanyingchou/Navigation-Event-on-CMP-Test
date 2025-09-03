@@ -101,7 +101,9 @@ fun App() {
             listOf(),
             backStack
         )
-        null -> {}
+        null -> {
+            Text("Error: Back stack is empty!")
+        }
     }
 }
 

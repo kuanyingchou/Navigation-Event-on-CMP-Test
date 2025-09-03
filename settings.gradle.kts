@@ -5,7 +5,7 @@ pluginManagement {
     repositories {
         mavenLocal()
         maven {
-            setUrl("/Users/kuanyingchou/androidx-main/out/repository/")
+            setUrl("/Users/kuanyingchou/androidx-main/out/repository/") // Change this
         }
         google {
             mavenContent {
@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     repositories {
         mavenLocal()
         maven {
-            setUrl("/Users/kuanyingchou/androidx-main/out/repository/")
+            setUrl("/Users/kuanyingchou/androidx-main/out/repository/") // Change this
         }
         maven {
             setUrl("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
