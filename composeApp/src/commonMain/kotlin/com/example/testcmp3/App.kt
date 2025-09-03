@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,9 +23,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastForEachReversed
 import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventCallback
 import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationEventHandler
+import com.example.testcmp3.Destination.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -32,74 +42,99 @@ import testcmp3.composeapp.generated.resources.Res
 import testcmp3.composeapp.generated.resources.compose_multiplatform
 import kotlin.reflect.KClass
 
-var id = 0
+enum class Destination: NavigationEventInfo {
+    Settings,
+    Connection,
+    Battery,
+    General,
+    About,
+    Language,
+}
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
+        Box(modifier = Modifier.padding(8.dp)) {
+            Content()
+        }
+    }
+}
 
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            var progressState by remember { mutableStateOf(0f) }
-            var touchXState by remember { mutableStateOf(0f) }
-            var touchYState by remember { mutableStateOf(0f) }
-            var events by remember { mutableStateOf(listOf<String>()) }
+@Composable fun Content() {
+    val backStack = remember { mutableStateListOf<Destination>(Settings) }
 
-            NavigationEventHandler { progress ->
-                events += "started"
-                try {
-                    progress.collect { e ->
-                        progressState = e.progress
-                        touchXState = e.touchX
-                        touchYState = e.touchY
-                        events += "${id} (${e.hashCode()}): $e"
-                        id++
-                    }
-                    events += "completed"
-                } catch(e: Exception) {
-                    events += "cancelled"
-                }
+    when (backStack.lastOrNull()) {
+        Settings -> Screen(
+            Settings,
+            null,
+            listOf(Connection, Battery, General),
+            backStack
+        )
+        Connection -> Screen(
+            Connection,
+            Settings,
+            listOf(),
+            backStack
+        )
+        Battery -> Screen(
+            Battery,
+            Settings,
+            listOf(),
+            backStack
+        )
+        General -> Screen(
+            General,
+            Settings,
+            listOf(About, Language),
+            backStack
+        )
+        About -> Screen(
+            About,
+            General,
+            listOf(),
+            backStack
+        )
+        Language -> Screen(
+            Language,
+            General,
+            listOf(),
+            backStack
+        )
+        null -> {}
+    }
+}
+
+@Composable
+fun Screen(current: Destination, up: Destination?, downs: List<Destination>, backStack: MutableList<Destination>) {
+    Column {
+        if (up == null) {
+            Text("Nowhere to go back to")
+        } else {
+            Button(onClick = {
+                backStack.removeLastOrNull() // pop
+            }) {
+                Text("Back to $up")
             }
+        }
 
-            Text("touchX")
-            Slider(
-                value = touchXState / LocalWindowInfo.current.containerSize.width,
-                onValueChange = {})
-            Text("touchY")
-            Slider(
-                value = touchYState / LocalWindowInfo.current.containerSize.height,
-                onValueChange = {})
-            Text("progress")
-            Slider(value = progressState, onValueChange = {})
-            events.takeLast(5).forEach {
-                Text(it)
-                Box(modifier = Modifier.height(10.dp))
-            }
+        Text(text = backStack.joinToString(" > "), fontSize = 24.sp)
 
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
+        for (down in downs) {
+            Button(onClick = {
+                backStack.add(down) // push
+            }) {
+                Text(text = "$down")
             }
+        }
+    }
 
-            var enabled by remember { mutableStateOf(true) }
-            if (enabled) {
-                Button(onClick = {
-                    enabled = false
-                }) {}
-            }
+    NavigationEventHandler(currentInfo = current, previousInfo = up) { progress ->
+        try {
+            progress.collect()
+            backStack.removeLastOrNull()
+        } catch (_: Exception) {
+            // cancelled
         }
     }
 }

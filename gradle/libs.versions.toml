@@ -14,7 +14,7 @@ junit = "4.13.2"
 kotlin = "2.2.0"
 kotlinx-coroutines = "1.10.2"
 composeMultiplatform = "9999.0.0" # Change this
-navigation-event = "1.0.0-alpha07" # Change this
+navigation-event = "1.0.0-alpha08" # Change this
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
