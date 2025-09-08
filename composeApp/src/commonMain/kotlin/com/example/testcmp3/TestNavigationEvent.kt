@@ -45,21 +45,21 @@ fun testNavigationEvent() {
         var touchYState by remember { mutableStateOf(0f) }
         var events by remember { mutableStateOf(listOf<String>()) }
 
-        NavigationEventHandler { progress ->
-            events += "started"
-            try {
-                progress.collect { e ->
-                    progressState = e.progress
-                    touchXState = e.touchX
-                    touchYState = e.touchY
-                    events += "${id} (${e.hashCode()}): $e"
-                    id++
-                }
-                events += "completed"
-            } catch(e: Exception) {
-                events += "cancelled"
-            }
-        }
+//        NavigationEventHandler { progress ->
+//            events += "started"
+//            try {
+//                progress.collect { e ->
+//                    progressState = e.progress
+//                    touchXState = e.touchX
+//                    touchYState = e.touchY
+//                    events += "${id} (${e.hashCode()}): $e"
+//                    id++
+//                }
+//                events += "completed"
+//            } catch(e: Exception) {
+//                events += "cancelled"
+//            }
+//        }
 
         Text("touchX")
         Slider(
