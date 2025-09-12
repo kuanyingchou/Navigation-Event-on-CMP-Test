@@ -39,53 +39,47 @@ fun App() {
 fun Content() {
     val backStack = remember { mutableStateListOf<Destination>(Settings) }
 
-    when (backStack.lastOrNull()) {
-        Settings -> Screen(
-            Settings,
+    val (current, parent, children) = when (backStack.lastOrNull()) {
+        Settings ->
+            Triple(Settings,
             null,
-            listOf(Connection, Battery, General),
-            backStack
+            listOf(Connection, Battery, General)
         )
-        Connection -> Screen(
+        Connection -> Triple(
             Connection,
             Settings,
-            listOf(),
-            backStack
+            listOf()
         )
-        Battery -> Screen(
+        Battery -> Triple(
             Battery,
             Settings,
             listOf(Health),
-            backStack
         )
-        Health -> Screen(
+        Health -> Triple(
             Health,
             Battery,
             listOf(),
-            backStack
         )
-        General -> Screen(
+        General -> Triple(
             General,
             Settings,
             listOf(About, Language),
-            backStack
         )
-        About -> Screen(
+        About -> Triple(
             About,
             General,
             listOf(),
-            backStack
         )
-        Language -> Screen(
+        Language -> Triple(
             Language,
             General,
             listOf(),
-            backStack
         )
         null -> {
-            Text("Error: Back stack is empty!")
+            error("Error: Back stack is empty!")
         }
     }
+    Screen(current, parent, children, backStack)
 }
 
 @Composable
