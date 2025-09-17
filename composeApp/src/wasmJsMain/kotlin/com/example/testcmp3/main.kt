@@ -216,13 +216,36 @@ class BrowserInput(private val window: Window): NavigationEventInput() {
             "current index = $currentIndex!?"
         }
 
-        // Start pushing new entries.
-        document.title = RESERVED_TITLE // otherwise the title is still the same as before going back.
-        for ((index, info) in newHistory.mergedHistory.withIndex()) {
-            println("before push: ${document.title}")
-            browserHistory.push(index.toJsNumber(), "#${info}")
-            document.title = info.toString() // todo: title?
-            println("setting title to $info")
+        // Start adding new entries.
+        if (navigationEventHistory != null &&
+            newHistory.mergedHistory.size >= navigationEventHistory!!.mergedHistory.size) {
+            // We don't need to remove anything so reuse the existing entries.
+            var index = 0
+            while (index < navigationEventHistory!!.mergedHistory.size) {
+                processPopState = false
+                browserHistory.go(1)
+                processPopState = true
+                val info = newHistory.mergedHistory[index]
+                println("replacing ${browserHistory.state} with ${index}")
+                browserHistory.replace(index.toJsNumber(), "#${info}")
+                document.title = info.toString()
+                index++
+            }
+            // Now we have used up all the old entries so start pushing.
+            while (index < newHistory.mergedHistory.size) {
+                val info = newHistory.mergedHistory[index]
+                browserHistory.push(index.toJsNumber(), "#${info}")
+                document.title = info.toString()
+                index++
+            }
+        } else {
+            document.title = RESERVED_TITLE // otherwise the title is still the same as before going back.
+            for ((index, info) in newHistory.mergedHistory.withIndex()) {
+                println("before push: ${document.title}")
+                browserHistory.push(index.toJsNumber(), "#${info}")
+                document.title = info.toString() // todo: title?
+                println("setting title to $info")
+            }
         }
 
         // Now we go back to "current".
