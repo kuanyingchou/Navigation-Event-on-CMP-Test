@@ -246,6 +246,7 @@ class BrowserInput(private val window: Window): NavigationEventInput() {
                 document.title = info.toString() // todo: title?
                 println("setting title to $info")
             }
+            browserHistory.replace((newHistory.mergedHistory.size-1).toJsNumber(), "#${newHistory.mergedHistory.last()}")
         }
 
         // Now we go back to "current".
