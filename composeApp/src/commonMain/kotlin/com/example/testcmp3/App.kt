@@ -12,17 +12,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationEventHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import com.example.testcmp3.Destination.*
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-enum class Destination: NavigationEventInfo {
-    Settings,
-    Connection,
-    Battery,
-    Health,
-    General,
-    About,
-    Language,
+sealed class Destination: NavigationEventInfo() {
+    object Settings: Destination()
+    object Connection: Destination()
+    object Battery: Destination()
+    object Health: Destination()
+    object General: Destination()
+    object About: Destination()
+    object Language: Destination()
+
+    override fun toString(): String {
+        return this::class.simpleName.toString()
+    }
 }
 
 @Composable
@@ -111,10 +116,13 @@ fun Screen(
         }
     }
 
-    NavigationEventHandler(
+    val state = rememberNavigationEventState(
         currentInfo = current,
         backInfo = if (backStack.isEmpty()) emptyList() else backStack.dropLast(1),
         forwardInfo = if (children.size == 1) listOf(children.single()) else emptyList(),
+    )
+    NavigationEventHandler(
+        state,
         onBackCompleted = {
             println("gyz:onBackCompleted")
             backStack.removeLastOrNull()
