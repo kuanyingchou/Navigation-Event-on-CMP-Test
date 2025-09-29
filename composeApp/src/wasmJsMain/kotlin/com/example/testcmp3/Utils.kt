@@ -89,6 +89,13 @@ internal class BrowserDocumentImpl(private val window: Window): BrowserDocument 
         get() = window.document.title
         set(value) {
             println("setting title from ${window.document.title} to $value")
+
+            // Hack: if the title is the same as `value` it won't trigger any change in the
+            // dropdown menu, so we set it to empty string first.
+            if (value == window.document.title) {
+                window.document.title = ""
+            }
+
             window.document.title = value
         }
 }

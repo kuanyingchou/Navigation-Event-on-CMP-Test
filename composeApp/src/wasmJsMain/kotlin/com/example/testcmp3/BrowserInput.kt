@@ -167,11 +167,6 @@ class BrowserInput internal constructor(
                             if (info != Invalid) {
                                 browserHistory.replace(index.toJsNumber(), "#invalid")
                             }
-                            // Hack: if the title is already Invalid setting it to the same string
-                            // doesn't trigger any change in the dropdown menu, so we set it to
-                            // empty string first.
-                            browserDocument.title = ""
-
                             browserDocument.title = "Invalid"
                             newEntries.add(Invalid)
                         }
