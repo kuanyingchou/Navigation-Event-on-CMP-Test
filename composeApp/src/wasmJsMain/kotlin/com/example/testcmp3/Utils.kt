@@ -13,33 +13,15 @@ import org.w3c.dom.events.Event
 import kotlin.getValue
 import kotlin.setValue
 
-// utils
-
-// The constructors of NavigationEventHistory are not public.
-internal class MyNavigationEventHistory(val entries: List<NavigationEventInfo>, val index: Int) {
-    constructor(history: NavigationEventHistory): this(history.mergedHistory, history.currentIndex)
-}
-
-internal fun NavigationEventHistory.debugString(): String {
-    val historyEntries = mergedHistory.withIndex().joinToString { (index, info) ->
-        if (index == currentIndex) {
-            "$index: $info*"
+internal fun historyString(list: List<Any?>, currentIndex: Int): String {
+    return list.withIndex().joinToString(prefix = "[", postfix = "]") { (index, info) ->
+        val suffix = if (index == currentIndex) {
+            "*"
         } else {
-            "$index: $info"
+            ""
         }
+        "$info$suffix"
     }
-    return "[$historyEntries]"
-}
-
-internal fun MyNavigationEventHistory.debugString(): String {
-    val historyEntries = entries.withIndex().joinToString { (index, info) ->
-        if (index == this@debugString.index) {
-            "$index: $info*"
-        } else {
-            "$index: $info"
-        }
-    }
-    return "[$historyEntries]"
 }
 
 internal fun Window.createPopStateFlow() = callbackFlow {
@@ -63,6 +45,7 @@ internal fun BrowserWindow.createPopStateFlow() = callbackFlow {
 }
 
 internal class BrowserHistoryImpl(private val window: Window): BrowserHistory {
+
     override val state: JsAny?
         get() = window.history.state
 
@@ -77,9 +60,8 @@ internal class BrowserHistoryImpl(private val window: Window): BrowserHistory {
     }
 
     override suspend fun go(delta: Int) {
-        require(delta != 0) // No "refresh" for now.
         println("BrowserHistory.go($delta)")
-
+        if (delta == 0) return // Ignore "refresh" for now.
         window.history.go(delta)
         // TODO: Will get stuck if we go out of range. For example, if the history is [a, b*, c],
         // and we call `history.go(2)`, we'll be stuck here as the call will be ignored and we
@@ -102,8 +84,13 @@ public interface BrowserDocument {
     public var title: String
 }
 
-internal class BrowserDocumentImpl(document: Document): BrowserDocument {
-    override var title: String by document::title
+internal class BrowserDocumentImpl(private val window: Window): BrowserDocument {
+    override var title: String
+        get() = window.document.title
+        set(value) {
+            println("setting title from ${window.document.title} to $value")
+            window.document.title = value
+        }
 }
 
 public interface BrowserWindow {
@@ -114,7 +101,7 @@ public interface BrowserWindow {
 }
 
 internal class BrowserWindowImpl(private val window: Window): BrowserWindow {
-    override val document: BrowserDocument = BrowserDocumentImpl(window.document)
+    override val document: BrowserDocument = BrowserDocumentImpl(window)
 
     override val history: BrowserHistory = BrowserHistoryImpl(window)
 

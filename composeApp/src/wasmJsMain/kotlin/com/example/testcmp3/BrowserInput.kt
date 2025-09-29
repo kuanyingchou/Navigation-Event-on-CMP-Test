@@ -109,11 +109,10 @@ class BrowserInput internal constructor(
         }
     }
 
-    internal suspend fun updateBrowserHistory(
+    private suspend fun updateBrowserHistory(
         oldHistory: MyNavigationEventHistory?,
         newHistory: MyNavigationEventHistory
     ): MyNavigationEventHistory? {
-        println("updateBrowserHistory(oldHistory=${oldHistory?.debugString()}, newHistory=${newHistory.debugString()})")
         if (newHistory.entries.isEmpty() || newHistory.index < 0) {
             return oldHistory
         }
@@ -131,7 +130,8 @@ class BrowserInput internal constructor(
                 index++
             }
             // Go back to current index.
-            val delta = newHistory.entries.size - newHistory.index - 1
+            val current = newHistory.entries.size - 1
+            val delta = newHistory.index - current
             if (delta != 0) {
                 browserHistory.go(delta)
             }
@@ -141,6 +141,7 @@ class BrowserInput internal constructor(
                 if (newHistory.index != oldHistory.index) {
                     // The infos stay the same, only index changed, then go there directly.
                     browserHistory.go(newHistory.index - oldHistory.index)
+                    browserDocument.title = newHistory.entries[newHistory.index].toString()
                 }
                 newHistory
             } else {
@@ -150,47 +151,61 @@ class BrowserInput internal constructor(
                 }
 
                 // Start replacing or pushing new entries
-                for ((index, info) in newHistory.entries.withIndex()) {
-                    if (index < oldHistory.entries.size) {
-                        if (info != oldHistory.entries[index]) {
-                            browserHistory.replace(
-                                index.toJsNumber(),
-                                "#${info}"
-                            )
-                            browserDocument.title = info.toString()
+                return if (oldHistory.entries.size >= newHistory.entries.size) {
+                    println("updateBrowserHistory(oldHistory=${oldHistory.debugString()}, newHistory=${newHistory.debugString()})")
+                    val newEntries = mutableListOf<NavigationEventInfo>()
+                    newEntries.addAll(newHistory.entries)
+
+                    for ((index, info) in oldHistory.entries.withIndex()) {
+                        if (index < newHistory.entries.size) {
+                            val newInfo = newHistory.entries[index]
+                            if (info != newInfo) {
+                                browserHistory.replace(index.toJsNumber(), "#${newInfo}")
+                            }
+                            browserDocument.title = newInfo.toString()
                         } else {
-                            println("skip $index as the infos are the same: $info")
+                            if (info != Invalid) {
+                                browserHistory.replace(index.toJsNumber(), "#invalid")
+                            }
+                            // Hack: if the title is already Invalid setting it to the same string
+                            // doesn't trigger any change in the dropdown menu, so we set it to
+                            // empty string first.
+                            browserDocument.title = ""
+
+                            browserDocument.title = "Invalid"
+                            newEntries.add(Invalid)
                         }
-                        if (index < newHistory.entries.size - 1 &&
-                            index < oldHistory.entries.size - 1) {
+                        if (index < oldHistory.entries.size - 1) {
                             browserHistory.go(1)
                         }
-                    } else {
-                        browserHistory.push(index.toJsNumber(), "#${info}")
-                        browserDocument.title = info.toString()
                     }
-                }
-                println("after adding or replacing: ${browserHistory.state}")
-
-                // If there are extra entries in the browser history, push an Invalid entry to remove them.
-                // [0, 1]
-                // [0, Invalid], oldHistory: [0]
-                //
-                val updatedNewHistory = if (newHistory.entries.size < oldHistory.entries.size) {
-                    browserHistory.push(newHistory.entries.size.toJsNumber(), "#invalid")
-                    browserDocument.title = "Invalid"
-                    MyNavigationEventHistory(newHistory.entries + Invalid, newHistory.index)
-                } else {
+                    val current = oldHistory.entries.size - 1
+                    val delta = newHistory.index - current
+                    browserHistory.go(delta)
+                    MyNavigationEventHistory(newEntries, newHistory.index)
+                } else { // newHistory.entries.size > oldHistory.entries.size
+                    for ((index, info) in newHistory.entries.withIndex()) {
+                        if (index < oldHistory.entries.size) {
+                            if (info != oldHistory.entries[index]) {
+                                browserHistory.replace(
+                                    index.toJsNumber(),
+                                    "#${info}"
+                                )
+                            }
+                            browserDocument.title = info.toString()
+                            if (index < oldHistory.entries.size - 1) {
+                                browserHistory.go(1)
+                            }
+                        } else {
+                            browserHistory.push(index.toJsNumber(), "#${info}")
+                            browserDocument.title = info.toString()
+                        }
+                    }
+                    val current = newHistory.entries.size - 1
+                    val delta = newHistory.index - current
+                    browserHistory.go(delta)
                     newHistory
                 }
-
-                // Go back to current index. [0, 1, 2*] > [0, 1*, 2]
-                val lastIndex = updatedNewHistory.entries.size - 1
-                val delta = updatedNewHistory.index - lastIndex
-                if (delta != 0) {
-                    browserHistory.go(delta)
-                }
-                updatedNewHistory
             }
         }
     }
@@ -208,4 +223,13 @@ class BrowserInput internal constructor(
     }
 
     private object Invalid: NavigationEventInfo()
+}
+
+// The constructors of NavigationEventHistory are not public.
+private class MyNavigationEventHistory(val entries: List<NavigationEventInfo>, val index: Int) {
+    constructor(history: NavigationEventHistory): this(history.mergedHistory, history.currentIndex)
+}
+
+private fun MyNavigationEventHistory.debugString(): String {
+    return historyString(this.entries, this.index)
 }
