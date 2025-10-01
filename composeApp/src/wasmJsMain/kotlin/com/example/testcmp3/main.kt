@@ -23,6 +23,7 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
@@ -44,7 +45,28 @@ fun main() {
 
     ComposeViewport(document.body!!) {
         CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
-            App()
+            //App()
+            Button(onClick = {
+                test()
+            }) {
+                Text("Click me!")
+            }
         }
+    }
+}
+
+private fun test() {
+    val history = BrowserHistoryImpl(window)
+    val document = BrowserDocumentImpl(window)
+    history.replace("a".toJsString(), "#a")
+    document.title = "a"
+    history.push("b".toJsString(), "#b")
+    document.title = "b"
+    history.push("c".toJsString(), "#c")
+    document.title = "c"
+    history.push("d".toJsString(), "#d")
+    document.title = "d"
+    MainScope().launch {
+        history.go(-1)
     }
 }

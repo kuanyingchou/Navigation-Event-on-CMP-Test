@@ -3,6 +3,7 @@ package com.example.testcmp3
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventHandler
 import androidx.navigationevent.NavigationEventInfo
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
@@ -25,116 +26,330 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BrowserInputTest {
 
     private object A: NavigationEventInfo()
     private object B: NavigationEventInfo()
     private object C: NavigationEventInfo()
+    private object X: NavigationEventInfo()
+    private object Y: NavigationEventInfo()
+    private object Z: NavigationEventInfo()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun initialStateWithSingleInfo() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
         val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
         dispatcher.addHandler(handler)
 
-        launch {
-            assertEquals(jsNumberList(0), window.history.states)
-            assertEquals(0, window.history.index)
-        }
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0), window.history.states)
+        assertEquals(0, window.history.index)
     }
 
     @Test
     fun initialStateWithMultipleInfos() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
         val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
+        handler.setInfos(listOf(A, B, C), 1)
         dispatcher.addHandler(handler)
 
-        handler.setInfo(B, listOf(A), listOf(C))
+        advanceUntilIdle()
 
-        launch {
-            assertEquals(jsNumberList(0, 1, 2), window.history.states)
-            assertEquals(1, window.history.index)
-        }
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(1, window.history.index)
     }
 
     @Test
     fun changeDestination() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
         val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
         dispatcher.addHandler(handler)
 
-        handler.setInfo(B, listOf(A), emptyList())
+        handler.setInfos(listOf(A, B), 1)
 
-        launch {
-            assertEquals(jsNumberList(0, 1), window.history.states)
-            assertEquals(1, window.history.index)
-        }
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1), window.history.states)
+        assertEquals(1, window.history.index)
     }
 
     @Test
-    fun changeDestinationAndBack() = runTest {
+    fun newInfosAreLonger() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A, B, C), 1)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(1, window.history.index)
+    }
+
+    @Test
+    fun newInfosAreShorter() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
+        handler.setInfos(listOf(A, B, C), 1)
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A), 0)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(0, window.history.index)
+    }
+
+    @Test
+    fun changeDestinationAndHierarchicalBack() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
         val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
         dispatcher.addHandler(handler)
 
         handler.setInfos(listOf(A, B), 1)
         handler.setInfos(listOf(A), 0)
-        launch {
-            assertEquals(jsNumberList(0, 1), window.history.states)
-            assertEquals(0, window.history.index)
-        }
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1), window.history.states)
+        assertEquals(0, window.history.index)
     }
 
     @Test
-    fun changeDestinationAndBrowserBack() = runTest {
+    fun changeDestinationAndChronologicalBack() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
         val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
         dispatcher.addHandler(handler)
 
         handler.setInfos(listOf(A, B), 1)
+        handler.setInfos(listOf(A, B), 0)
 
-        launch {
-            window.history.go(-1)
-            assertEquals(jsNumberList(0, 1), window.history.states)
-            assertEquals(0, window.history.index)
-        }
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1), window.history.states)
+        assertEquals(0, window.history.index)
     }
 
     @Test
-    fun browserForwardToEmptyEntryGoesBack() = runTest {
+    fun browserBackWorks() = runTest {
         val window = TestWindow()
         val dispatcher = NavigationEventDispatcher()
-        val input = BrowserInput(window)
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
         dispatcher.addInput(input)
-        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {}
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {
+            override fun onBackCompleted() {
+                if (backInfo.isNotEmpty()) {
+                    setInfo(
+                        backInfo.last(),
+                        backInfo.dropLast(1),
+                        listOf(currentInfo) + forwardInfo
+                    )
+                }
+            }
+        }
         dispatcher.addHandler(handler)
 
         handler.setInfos(listOf(A, B), 1)
+
+        advanceUntilIdle()
+
+        window.history.go(-1)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1), window.history.states)
+        assertEquals(0, window.history.index)
+
+        assertEquals(listOf(A, B), dispatcher.history.value.mergedHistory)
+        assertEquals(0, dispatcher.history.value.currentIndex)
+    }
+
+    @Test
+    fun browserForwardWorks() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true, isForwardEnabled = true) {
+            override fun onForwardCompleted() {
+                println("receive forward")
+                if (forwardInfo.isNotEmpty()) {
+                    setInfo(
+                        forwardInfo.first(),
+                        backInfo + listOf(currentInfo),
+                        forwardInfo.drop(1)
+                    )
+                }
+            }
+        }
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A, B), 0)
+
+        advanceUntilIdle()
+
+        window.history.go(1)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1), window.history.states)
+        assertEquals(1, window.history.index)
+
+        assertEquals(listOf(A, B), dispatcher.history.value.mergedHistory)
+        assertEquals(1, dispatcher.history.value.currentIndex)
+    }
+
+    @Test
+    fun browserMultipleBackWorks() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        var invokedCount = 0
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {
+            override fun onBackCompleted() {
+                invokedCount++
+                if (backInfo.isNotEmpty()) {
+                    setInfo(
+                        backInfo.last(),
+                        backInfo.dropLast(1),
+                        listOf(currentInfo) + forwardInfo
+                    )
+                }
+            }
+        }
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A, B, C), 2)
+
+        advanceUntilIdle()
+
+        window.history.go(-2)
+
+        advanceUntilIdle()
+
+        assertEquals(2, invokedCount)
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(0, window.history.index)
+
+        assertEquals(listOf(A, B, C), dispatcher.history.value.mergedHistory)
+        assertEquals(0, dispatcher.history.value.currentIndex)
+    }
+
+    @Test
+    fun browserMultipleForwardWorks() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        var invokedCount = 0
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true, isForwardEnabled = true) {
+            override fun onForwardCompleted() {
+                invokedCount++
+                if (forwardInfo.isNotEmpty()) {
+                    setInfo(
+                        forwardInfo.first(),
+                        backInfo + listOf(currentInfo),
+                        forwardInfo.drop(1)
+                    )
+                }
+            }
+        }
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A, B, C), 0)
+
+        advanceUntilIdle()
+
+        window.history.go(2)
+
+        advanceUntilIdle()
+
+        assertEquals(2, invokedCount)
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(2, window.history.index)
+
+        assertEquals(listOf(A, B, C), dispatcher.history.value.mergedHistory)
+        assertEquals(2, dispatcher.history.value.currentIndex)
+    }
+
+    @Test
+    fun goesToAnInvalidEntryGoesBackDirectly() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {
+            override fun onForwardCompleted() {
+                require(false) { "Should not be called"}
+            }
+        }
+        dispatcher.addHandler(handler)
+
+        handler.setInfos(listOf(A, B, C), 2)
         handler.setInfos(listOf(A), 0)
 
-        launch {
-            window.history.go(1)
+        advanceUntilIdle()
+
+        window.history.go(2)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(0, window.history.index)
+    }
+
+    @Test
+    fun changeHandlersShouldWork() = runTest {
+        val window = TestWindow()
+        val dispatcher = NavigationEventDispatcher()
+        val input = BrowserInput(window, this.coroutineContext[CoroutineDispatcher]!!)
+        dispatcher.addInput(input)
+        val handler = object: NavigationEventHandler<NavigationEventInfo>(A, true) {
+            override fun onForwardCompleted() {
+                require(false) { "Should not be called"}
+            }
         }
-        launch {
-            assertEquals(jsNumberList(0, 1), window.history.states)
-            //assertEquals(0, window.history.index)
+        handler.setInfos(listOf(A, B, C), 0)
+        dispatcher.addHandler(handler)
+
+        val handler2 = object: NavigationEventHandler<NavigationEventInfo>(A, true) {
+            override fun onForwardCompleted() {
+                require(false) { "Should not be called"}
+            }
         }
+        handler2.setInfos(listOf(X, Y, Z), 2)
+        dispatcher.addHandler(handler2)
+
+        advanceUntilIdle()
+
+        assertEquals(jsNumberList(0, 1, 2), window.history.states)
+        assertEquals(2, window.history.index)
     }
 }
 

@@ -4,8 +4,11 @@ import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventHistory
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventInput
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.PopStateEvent
@@ -13,8 +16,10 @@ import org.w3c.dom.Window
 
 class BrowserInput internal constructor(
     private val browserWindow: BrowserWindow,
-    private val coroutineScope: CoroutineScope = MainScope()
+    coroutineDispatcher: CoroutineDispatcher = Dispatchers.Main
 ): NavigationEventInput() {
+
+    private val coroutineScope: CoroutineScope = CoroutineScope(Job() + coroutineDispatcher)
 
     companion object {
         const val TYPE_POPSTATE = "popstate"
@@ -40,6 +45,7 @@ class BrowserInput internal constructor(
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun onPopState(popStateEvent: PopStateEvent) {
+        println("onPopState: ${popStateEvent.state}")
         if (!processPopState) {
             return
         }
@@ -72,13 +78,16 @@ class BrowserInput internal constructor(
                 }
                 dispatchOnBackCompleted()
             } else if (newIndex > currentIndex) {
+                println("moving from $currentIndex to $newIndex")
                 val timesToGoForward = newIndex - currentIndex
                 disableHistoryUpdateCallback {
                     repeat(timesToGoForward - 1) {
                         dispatchOnForwardCompleted()
+                        println("sent forward")
                     }
                 }
                 dispatchOnForwardCompleted()
+                println("sent forward")
             } else { // newIndex == currentIndex
                 println("index == current == $newIndex !?")
             }
@@ -88,9 +97,8 @@ class BrowserInput internal constructor(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onHistoryChanged(history: NavigationEventHistory) {
-        //println("gyz: onHistoryChanged, current: ${currentHistory?.debugString()}, new: ${history.debugString()}")
+        println("onHistoryChanged: ${historyString(history.mergedHistory, history.currentIndex)}")
         if (!processHistoryChange) {
-            //println("onHistoryChanged ignored")
             return
         }
 
@@ -113,6 +121,7 @@ class BrowserInput internal constructor(
         oldHistory: MyNavigationEventHistory?,
         newHistory: MyNavigationEventHistory
     ): MyNavigationEventHistory? {
+        //println("gyz: onHistoryChanged, current: ${oldHistory?.debugString()}, new: ${newHistory.debugString()} >>>")
         if (newHistory.entries.isEmpty() || newHistory.index < 0) {
             return oldHistory
         }
